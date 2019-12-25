@@ -1,0 +1,3 @@
+[submodule "adventures-in-ml-code"]
+	path = adventures-in-ml-code
+	url = git@github.com:adventuresinML/adventures-in-ml-code.git
