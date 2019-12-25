@@ -4,6 +4,10 @@ School assignment - Creating a simple neural network with tensorflow
 ## Dependencies
 ``pip3 install tensorflow``
 
+## Installation
+- Pull the project
+- ``git submodule init``
+
 ## Needed knowledge
 neural networks
 https://adventuresinmachinelearning.com/neural-networks-tutorial/
