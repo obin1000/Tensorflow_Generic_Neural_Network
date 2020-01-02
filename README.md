@@ -13,4 +13,4 @@ neural networks
 https://adventuresinmachinelearning.com/neural-networks-tutorial/
 
 ## Tutorial followed
-https://adventuresinmachinelearning.com/python-tensorflow-tutorial/
+**From section 3.0 on:** https://adventuresinmachinelearning.com/python-tensorflow-tutorial/
