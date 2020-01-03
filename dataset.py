@@ -5,7 +5,6 @@ import numpy as np
 
 
 # TODO: Balance the dataset
-# TODO: Normalize the data
 class Dataset:
     """
     Helps creating you a dataset to use for a neural network. It can do multiple things:
@@ -13,6 +12,7 @@ class Dataset:
         resize them to the same dimensions. After this, they are ready to be used by Tensorflow.
     """
     IMAGE_SIZE = 100
+    MAX_BALANCE_DIFFERENCE = 5
 
     fileCounter = 0
 
@@ -28,15 +28,16 @@ class Dataset:
              ['Dog', data 1, data 2...],
              ...
             ]
-        RandomData: Has labeled shuffled data:
-            [['Cat', data], ['Dog', data], ['Dog', data], ['Cat', data] ...]
-
         """
         self.Categories = []
         self.Data = []
-        self.RandomData = []
 
     def add_category(self, cat):
+        """
+        Add a category to the dataset
+        :param cat: The category to add, should look like: ['Name', 'Source1', 'Source2'...]
+        :return: None
+        """
         self.Categories.append(cat)
 
     def run(self):
@@ -56,34 +57,39 @@ class Dataset:
 
                 print('Parsed {} items for category {} from {}'.format(len(self.Data[-1]), name, source))
 
-        # After all data for all categories is collected, fill the random data with it
-        self.create_random_data()
+    def normalize_data(self, data, max_value=255):
+        """
+        Normalize some data by changing its values to values between 0 and 1
+        :param data: Data to be normalized (img)
+        :param max_value: Highest value occurring in the dataset
+        :return: Data, but normalized
+        """
+        return data / max_value
 
-    def create_random_data(self):
-        # Copy the data to the random data as [category name, data][category name, data]...
-        for category in self.Data:
-            name = category[0]
-            for data in category[1:]:
-                self.RandomData.append([name, data])
-
-        # Shuffle dataset to balance the number of occurrences of the categories.
-        # Not 100 cats followed by 100 dogs, that's bad
-        random.shuffle(self.RandomData)
+    def balance_data(self, remove=True):
+        """
+        Check for balance in the dataset. Preferably all categories have exactly the same number of data samples.
+        If there is an imbalance, data will be removed from the biggest set until the balance is within margins.
+        :return: None
+        """
+        pass
 
     def relative_to_absolute(self, url):
         current_dir = os.path.dirname(__file__)
         return os.path.join(current_dir, url)
 
-    def _run_filesystem(self, dir, category):
+    def _run_filesystem(self, dir, category, normalize=True):
         category_data = [category]
 
         for image in os.listdir(dir):
             try:
-                # Use opencv to read the image in grayscale for less memory usage and easier parsing
+                # Use opencv to read the image. In grayscale for less memory usage and easier parsing
                 img_values = cv2.imread(os.path.join(dir, image), cv2.IMREAD_GRAYSCALE)
-                # Change the shape of the image
-                values_resized = cv2.resize(img_values, (self.IMAGE_SIZE, self.IMAGE_SIZE))
-                category_data.append(values_resized)
+                # Normalize shape of image to given dimensions and values of grayscale to values between 0 and 1.
+                if normalize:
+                    img_values = cv2.resize(img_values, (self.IMAGE_SIZE, self.IMAGE_SIZE))
+                    img_values = self.normalize_data(img_values)
+                category_data.append(img_values)
             except Exception as e:
                 # Skip all broken images
                 print('Something went wrong with image {}: {}'.format(image, e))
@@ -95,13 +101,53 @@ class Dataset:
     def _run_google_images(self):
         pass
 
+    def get_label_data_separated(self):
+        """
+        Get the labels and data separated from each other like ['Cat','Cat','Dog'], [data, data, data...]
+        :return: The labels and data separated in two different arrays
+        """
+        # Arrays for labels and matching data
+        labels = []
+        datas = []
+        for category in self.Data:
+            name = category[0]
+            for data in category[1:]:
+                labels.append(name)
+                datas.append(data)
+        return labels, datas
+
+    def get_labeled_data(self):
+        """
+        Get the data labeled in order: [['Cat', data], ['Cat', data] ... ['Dog', data], ['Dat', data] ...]
+        :return: The data labeled by category
+        """
+        labeled_data = []
+        # Copy the data to the random data with labels as [category name, data][category name, data]...
+        for category in self.Data:
+            name = category[0]
+            for data in category[1:]:
+                labeled_data.append([name, data])
+
+        return labeled_data
+
+    def get_random_data(self):
+        """
+        Has labeled shuffled data: [['Cat', data], ['Dog', data], ['Dog', data], ['Cat', data] ...]
+        :return: The data shuffled and labeled by category
+        """
+        random_data = self.get_labeled_data()
+        # Shuffle dataset to balance the number of occurrences of the categories.
+        # Not 100 cats followed by 100 dogs, that's bad
+        random.shuffle(random_data)
+        return random_data
+
     def export_bin(self, path):
         """
         Export the data to a csv file
         :param path: Path to the save location
         :return: None
         """
-        np.save('{}data{}.npy'.format(path, Dataset.fileCounter), np.asarray(self.Data))
+        np.save('{}data{}.npy'.format(path, Dataset.fileCounter), self.Data)
         Dataset.fileCounter += 1
 
     def export_compressed(self, path):
@@ -110,7 +156,7 @@ class Dataset:
         :param path: Path to the save location
         :return: None
         """
-        np.savez_compressed('{}data{}.npz'.format(path, Dataset.fileCounter), np.asarray(self.Data))
+        np.savez_compressed('{}data{}.npz'.format(path, Dataset.fileCounter), self.Data)
         Dataset.fileCounter += 1
 
     def import_bin(self, path):
@@ -121,11 +167,9 @@ class Dataset:
         """
         # Allow pickle to be able to import an array
         self.Data = np.load(path, allow_pickle=True)
-        self.create_random_data()
 
     def import_compressed(self, path, array_num='arr_0'):
         self.Data = np.load(path, allow_pickle=True)[array_num]
-        self.create_random_data()
 
     def __str__(self):
         cats = ''
