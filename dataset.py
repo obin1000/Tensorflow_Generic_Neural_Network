@@ -105,7 +105,10 @@ class Dataset:
                 print('Something went wrong with image {}: {}'.format(image, e))
         self.Data[category] += category_data
 
-    def _run_google_images(self, topic, category, num_of_images=MAX_GOOGLE_IMAGES_PER_SEARCH):
+    def _run_google_images(self, topic, category, num_of_images=20):
+        if num_of_images > self.MAX_GOOGLE_IMAGES_PER_SEARCH:
+            num_of_images = self.MAX_GOOGLE_IMAGES_PER_SEARCH
+
         response = google_images_download.googleimagesdownload()  # class instantiation
 
         # Decided not to use a prefix in the file name. This way images shich appear at multiple searching will
@@ -114,7 +117,6 @@ class Dataset:
                      'output_directory': self.DEFAULT_DATA_DIRECTORY}  # creating list of arguments
         paths = response.download(arguments)  # passing the arguments to the function
         self._run_filesystem(self.DEFAULT_DATA_DIRECTORY, category)
-
 
     def get_label_data_separated(self):
         """
@@ -143,7 +145,21 @@ class Dataset:
 
         return labeled_data
 
-    def get_random_data(self):
+    def get_shuffled_label_data_separated(self):
+        """
+        First shuffles data, then separates the labels from the data
+        :return: The labels and data
+        """
+        random_data = self.get_shuffled_data()
+        labels = []
+        datas = []
+        # Convert [['Dog', data]] to ['Dog'] [data]
+        for data in random_data:
+            labels.append(data[0])
+            datas.append(data[1])
+        return labels, datas
+
+    def get_shuffled_data(self):
         """
         Has labeled shuffled data: [['Cat', data], ['Dog', data], ['Dog', data], ['Cat', data] ...]
         :return: The data shuffled and labeled by category
@@ -153,6 +169,9 @@ class Dataset:
         # Not 100 cats followed by 100 dogs, that's bad
         random.shuffle(random_data)
         return random_data
+
+    def labels_to_numbers(self, labels):
+        pass
 
     def export_bin(self, path):
         """
