@@ -1,17 +1,18 @@
 import os
 import cv2
 import random
-from numpy import asarray, save, savez_compressed, load
+import numpy as np
 
 
 # TODO: Balance the dataset
+# TODO: Normalize the data
 class Dataset:
     """
     Helps creating you a dataset to use for a neural network. It can do multiple things:
     Provide an path on the local system with images. This class will read them with Opencv, turn them to greyscale and
         resize them to the same dimensions. After this, they are ready to be used by Tensorflow.
     """
-    IMAGE_SIZE = 4
+    IMAGE_SIZE = 100
 
     fileCounter = 0
 
@@ -55,6 +56,9 @@ class Dataset:
 
                 print('Parsed {} items for category {} from {}'.format(len(self.Data[-1]), name, source))
 
+        # After all data for all categories is collected, fill the random data with it
+        self.create_random_data()
+
     def create_random_data(self):
         # Copy the data to the random data as [category name, data][category name, data]...
         for category in self.Data:
@@ -78,11 +82,11 @@ class Dataset:
                 # Use opencv to read the image in grayscale for less memory usage and easier parsing
                 img_values = cv2.imread(os.path.join(dir, image), cv2.IMREAD_GRAYSCALE)
                 # Change the shape of the image
-                values_resized = cv2.resize(img_values, (Dataset.IMAGE_SIZE, Dataset.IMAGE_SIZE))
+                values_resized = cv2.resize(img_values, (self.IMAGE_SIZE, self.IMAGE_SIZE))
                 category_data.append(values_resized)
             except Exception as e:
                 # Skip all broken images
-                print('Something went wrong: ' + str(e))
+                print('Something went wrong with image {}: {}'.format(image, e))
         self.Data.append(category_data)
 
     def _run_online(self):
@@ -97,7 +101,7 @@ class Dataset:
         :param path: Path to the save location
         :return: None
         """
-        save('{}data{}.npy'.format(path, Dataset.fileCounter), asarray(self.Data))
+        np.save('{}data{}.npy'.format(path, Dataset.fileCounter), np.asarray(self.Data))
         Dataset.fileCounter += 1
 
     def export_compressed(self, path):
@@ -106,7 +110,7 @@ class Dataset:
         :param path: Path to the save location
         :return: None
         """
-        savez_compressed('{}data{}.npz'.format(path, Dataset.fileCounter), asarray(self.Data))
+        np.savez_compressed('{}data{}.npz'.format(path, Dataset.fileCounter), np.asarray(self.Data))
         Dataset.fileCounter += 1
 
     def import_bin(self, path):
@@ -116,12 +120,15 @@ class Dataset:
         :return: None
         """
         # Allow pickle to be able to import an array
-        self.Data = load(path, allow_pickle=True)
+        self.Data = np.load(path, allow_pickle=True)
         self.create_random_data()
 
     def import_compressed(self, path, array_num='arr_0'):
-        self.Data = load(path, allow_pickle=True)[array_num]
+        self.Data = np.load(path, allow_pickle=True)[array_num]
         self.create_random_data()
 
     def __str__(self):
-        return 'Data: {}'.format(self.Data)
+        cats = ''
+        for cat in self.Data:
+            cats += '{}: {}\n'.format(cat[0], len(cat))
+        return 'Categories: {} \n Total data: {} \n {}'.format(self.Categories, len(self.Data), cats)
