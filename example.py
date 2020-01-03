@@ -10,19 +10,19 @@ train_set = Dataset()
 
 # Add categories to the dataset with their sources. In this case we use the categories cats and dogs
 # and refer to images of cats and dogs on the filesystem
-# cat_path = train_set.relative_to_absolute('dataset/cats_and_dogs/sCat/')
-# dog_path = train_set.relative_to_absolute('dataset/cats_and_dogs/sDog/')
-# cat = ['cat', cat_path]
-# dog = ['dog', dog_path]
-# train_set.add_category(cat)
-# train_set.add_category(dog)
+cat_path = train_set.relative_to_absolute('dataset/cats_and_dogs/sCat/')
+dog_path = train_set.relative_to_absolute('dataset/cats_and_dogs/sDog/')
+cat = ['cat', cat_path]
+dog = ['dog', dog_path]
+train_set.add_category(cat)
+train_set.add_category(dog)
 
 # Add category to collect a dataset from google images
-train_set.add_category(['dog', 'dog', 'hond', 'puppy'])
-train_set.add_category(['cat', 'cat', 'kat', 'poes'])
+# train_set.add_category(['dog', 'dog', 'hond', 'puppy'])
+# train_set.add_category(['cat', 'cat', 'kat', 'poes'])
 
 # Set the resolution of the images
-train_set.IMAGE_SIZE = 4
+train_set.IMAGE_SIZE = 100
 
 # Parse the data from the sources into the dataset
 train_set.run()
@@ -42,10 +42,10 @@ labels, data = train_set.get_label_data_separated()
 
 # ============ Learn ==============
 
-# genie = Learner(labels, np.asarray(data))
-#
-# genie.EPOCHS = 10
-# genie.train()
+genie = Learner(labels, data)
+
+genie.EPOCHS = 10
+genie.train()
 
 # ============ Test =============
 # Create the dataset
