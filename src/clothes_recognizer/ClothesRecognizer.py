@@ -21,15 +21,6 @@ class ClothesRecognizer:
 
         self.test_images = self.test_images / 255.0
 
-        for i in range(25):
-            plt.subplot(5, 5, i + 1)
-            plt.xticks([])
-            plt.yticks([])
-            plt.grid(False)
-            plt.imshow(self.train_images[i], cmap=plt.cm.binary)
-            plt.xlabel(self.class_names[self.train_labels[i]])
-        plt.show()
-
         self.model = keras.Sequential([
             keras.layers.Flatten(input_shape=(28, 28)),
             keras.layers.Dense(128, activation='relu'),
@@ -78,3 +69,7 @@ class ClothesRecognizer:
 
         thisplot[predicted_label].set_color('red')
         thisplot[true_label].set_color('blue')
+
+
+if __name__ == '__main__':
+    cl = ClothesRecognizer()
