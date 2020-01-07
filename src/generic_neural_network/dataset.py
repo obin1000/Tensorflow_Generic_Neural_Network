@@ -56,9 +56,9 @@ class Dataset:
 
             # Parse the data sources, skip the first item since that is the name of the category
             for source in category[1:]:
-                if source.startswith('/'):
+                if ('/' in source) or ('\\' in source):
                     self._run_filesystem(source, name)
-                elif ('/' not in source) and (':' not in source):
+                elif not ('www' in source):
                     print('Generating dataset of {}: {}'.format(category, source))
                     self._run_google_images(source, name)
                 else:
@@ -111,10 +111,11 @@ class Dataset:
 
         response = google_images_download.googleimagesdownload()  # class instantiation
 
-        # Decided not to use a prefix in the file name. This way images shich appear at multiple searching will
+        # Decided not to use a prefix in the file name. This way images which appear at multiple searching will
         # not be used multiple times in the dataset, but will just be overwritten
+        # Creating list of arguments
         arguments = {'keywords': topic, 'limit': num_of_images, 'no_directory': True,
-                     'output_directory': self.DEFAULT_DATA_DIRECTORY}  # creating list of arguments
+                     'output_directory': self.DEFAULT_DATA_DIRECTORY}
         paths = response.download(arguments)  # passing the arguments to the function
         self._run_filesystem(self.DEFAULT_DATA_DIRECTORY, category)
 
@@ -147,7 +148,7 @@ class Dataset:
 
     def get_shuffled_label_data_separated(self):
         """
-        First shuffles data, then separates the labels from the data
+        First shuffles data, then separates the labels from the data. ['Cat','Dog','Cat'], [data, data, data...]
         :return: The labels and data
         """
         random_data = self.get_shuffled_data()

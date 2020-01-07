@@ -1,6 +1,6 @@
-from dataset import Dataset
+from generic_neural_network.dataset import Dataset
 import numpy as np
-from learner import Learner
+from generic_neural_network.learner import Learner
 
 # Cats and dogs dataset from Microsoft : https://www.microsoft.com/en-us/download/confirmation.aspx?id=54765
 
