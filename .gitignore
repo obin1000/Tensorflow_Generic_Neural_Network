@@ -131,3 +131,7 @@ dmypy.json
 .pyre/
 
 dataset/
+
+Tensorflow_Generic_Neural_Network.iml
+
+neural-network-tensorflow.iml
