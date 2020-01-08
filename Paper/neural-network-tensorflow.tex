@@ -53,7 +53,7 @@
 \JournalInfo{Artificial neural networks, January, 2020} % Journal information
 \Archive{Go neural or go home} % Additional notes (e.g. copyright, DOI, review/research article)
 
-\PaperTitle{Neural network recognizes clothing} % Article title
+\PaperTitle{Neural network in Tensorflow} % Article title
 
 \Authors{Robin Vonk, Michel Rummens} % Authors
 % \textsuperscript{1}*
@@ -86,7 +86,7 @@
 %	ARTICLE CONTENTS
 %----------------------------------------------------------------------------------------
 
-\section*{Introduction} % The \section*{} command stops section numbering
+% \section*{Introduction} % The \section*{} command stops section numbering
 
 \addcontentsline{toc}{section}{Introduction} % Adds this section to the table of contents
 
@@ -109,24 +109,44 @@ If you need more flexibility, eager execution allows for immediate iteration and
 So whether you are simply trying out neural networks - as we were - or planning on using it in production, Tensorflow has got you covered!
 
 \section{What we built in Tensorflow}
-For the first step, we build an neural network that is trained with the MNIST data-set to recognize pieces of clothing. 
-We used a web-scraper \cite{WebScraping} to retrieve 
+Our application can be found at: \url{https://github.com/rummens1337/neural-network-tensorflow}\\
+At first we build an application in tensorflow that was able to recognize pieces of clothing. This worked instantly out of the box by following a tutorial, not so challenging.. Then we went on to map this rather ugly sequential code into a somewhat nicer class. This did refresh our OOP skills a little, but didn't really give us any idea of what this neural network was actually doing. \\ \\
+To get a better understanding of what was actually going on, we followed a mathematical tutorial on neural networks. We didn't follow the whole tutorial, as it got really tricky in the end, but did teach us some of the basic principles of neural networks. Some quick terms we learned about are: Activation function (sigmoid, hyperbolic tanghent, Rectified Linear Unit (ReLU)), gradient descent is used to dempen the change on the weight or bias. \\ \\
+As we had a slightly better understanding of how neural networks worked, we decided that automatically gathering images from the www would be a nice edition to our application. Section 3. The data set generator will gave an in depth overview of how our webscraper \cite{WebScraping} works.
 
 \section{The data set generator}
+Neural networks need a lot of data to train and test the network. However collecting a lot of data is a difficult task. Look at Microsoft and Google bothering the entire internet to collect as much data as possible. To leech a little of this success from Google, we created our own tool to generate data sets.
+\subsection{Data parser}
+In Python we made a dataset class which helps the user with collecting data, searching for data and parsing data to be used for multiple goals, like for training tensor flow or opencv. The working is as followed:
+\begin{itemize}
+    \item Provide the dataset with categories (number) of data and sources to get the data from. Sources can be images on the local files system or search topics for on Google images.
+    \item The dataset parses the images.
+    \item The dataset can be exported to a file and retrieved from a file. This way you don't have to wait so long every time. Instead you can one time parse the data, save that and keep using it for future application.
+
+
+\end{itemize}
+The dataset reads the images from the file system. It converts these images to multi dimensional arrays, containing the pixel values of the image. Optionally are the pixel values converted to gray scale. You could do this to improve training speed with only losing a little bit of accuracy (Since grey scale data is 3 times smaller than RGB data). \\
+After turning the images to grey scale, the images are all cropped to the same format by blending pixel values together. It is a lot easier to compare images to each other, when they have the same dimensions. Of course you can barely compare an image of 200 by 200 pixels to an image of 2000 by 2000 pixels, so we convert all images to images of the same dimensions to make comparing easier (most of the time somewhere near 100 by 100 pixels). \\
+After all images from all categories are ready, the dataset tries to balance itself. This means that it tries to get same number of images in each category. If we do not do this, neural network could be trained wrongly. When it receives 1000 pictures of dogs, but only 100 pictures of cats, it will find a lot more dogs than cats. So to balance the dataset, we compare the size of all categories and try add images to the smallest dataset with images from google. If this is still not enough, it will remove images from the biggest categories until all categories are within margins of the smallest category.\\
+Now the dataset it ready to by used by our network!
 
 \subsection{Google images}
+You can provide topics about a category to the dataset and it will create a dataset for you. The dataset will use your topics to search on Google images and download as many images as possible from given topics. You'll need to provide a lot of topics though, because the google API only allows us to download 100 images at max per search. In the future we might implement support for Bing too, since Bing allows its users to download many more images per request.
 
 
+\section{Our understanding of (C)NN/ML}
+In This section we will briefly discuss our understanding of (C)NN/ML based on our application.
+For our application, we followed a tutorial, which by default did not use a convolutional neural network (CNN). It isn't until later that we discovered that these are actually the best kind of neural network you can choose for image processing. Convolution is an alternative for matix multiplication. For RGB images there are often 3 CNN's used, each to distinguish features in their respective colour. A CNN is recognizable by the fact that all it's nodes are tightly coupled together. Each node from the N'th layer has a connection to the node in the N'th layer.
+For images of 28x28 pixels, this is still doable. But as image size increases, the processing power needed also increases rapidly. For our application we used a single CNN, which processes 28x28 gray-scale images.\\ \\
+Our application consists of three layers; The input layer, the 'hidden layer' and the output layer. Having three layers for this kind of application is fairly common, but this kind of neural networks are considered quite 'shallow' and not very 'deep'. The more layers you add, the deeper your neural network becomes. If we were to process bigger images, we would probably add one or more pooling layers to distinguish parts of images that are valuable to us, to reduce processing costs.\\ \\
 
-\section{The neural network}
+\subsection{Our layers}
+Our input layer flattens the input shape (a 28x28 grayscale image) to 728 input nodes. The sequential model of Keras automatically calculates what dimensions the next layer requires, and automatically creates the needed amount of nodes and maps those correctly. A dense layer is considered a 'normal' layer in a neural network, where every node in the dense layer is connected to every single node in the previous layer. Because the input layer did not have a 'previous layer', an input shape is required, which in our layer is 28x28.\\ \\ 
+The 'hidden layer', which in our case is just a single dense layer, requires 128 dimensions. As I mentioned earlier, the sequential model will automatically map the 728 input dimensions to fit in the 128 dimension dense layer. The activation function used on the hidden layer is ReL, short for Rectified Linear. Until the 1990's sigmoid was commonly used as activation function, but as with tangh and sigmoid, the neural networks can become 'rusty'. If the input is way bigger or way smaller than the previous inputs, it only changes the weights/biases for a little bit. Of course, you want to filter extreme situations, but the tangh and sigmoid activation function can cause the neural network to become very slow in adapting to changes. The more layers you add, the bigger this problem becomes. This is known as the vanishing gradient problem. The ReL allows for way better learning rates in deep neural networks (the more layers you add, the bigger the vanishing gradient problem becomes with sigmoid and tangh), and is the mostly used activation function today.\\ \\
+Our output layer has 10 dimensions, one for each piece of clothing we wanted to recognize. The output layer has the activation function 'softmax'. This activation function will make sure that all output nodes together are 1.0. This way, we can simply take the highest probability from all nodes and decide whether the neural network has detected a pair of trousers or a shoe. \\ \\
 
-\subsection{input layer}
-
-\subsection{hidden layer}
-
-\subsection{output layer}
-
-
+\section{Test and result}
+Sadly, the tests of our network did not succeed. We did two tests, one with a training set from Kaggle and test set from Google images and a test with training set from Google images and a test set with handpicked images. We tried varying in the size of the train and test set, changing the learning rate, the number of layers in the network, the number of nodes in each layer and the number of epochs. The network only reaches an accuracy with as average 0.60 and at max 0.72 (which means the network is mostly guessing its results). Since we tried everything with our network, the problem probably lays with our dataset. We think that the dataset contains too much noise with too little data. Google images does not always provide correct images with given search terms and one search takes the system about 0.5 seconds, so it takes a long time to generate a really big dataset. So either the dataset needs a way of check whether found images are correct for the category or the dataset needs a quicker way of gathering images.
 %------------------------------------------------
 % \phantomsection
 % \section*{Acknowledgments} % The \section*{} command stops section numbering
