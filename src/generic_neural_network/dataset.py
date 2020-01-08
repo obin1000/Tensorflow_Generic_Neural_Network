@@ -114,7 +114,7 @@ class Dataset:
                 print('Unknown file type found: {}'.format(file_extension))
         return gathered_data
 
-    def _run_google_images(self, topics, num_of_images, remove_after_downlaod=True):
+    def _run_google_images(self, topics, num_of_images, remove_after_download=True):
         """
         Creates a dataset from Google images.
         :param topics: A list of topics to search  the web with
@@ -151,6 +151,7 @@ class Dataset:
 
                         # check is enough data is gathered
                         current_images = len(os.listdir(output_dir))
+                        print('Download at {}/{}'.format(current_images, num_of_images))
                         if current_images > num_of_images:
                             break
                     # check is enough data is gathered
@@ -167,7 +168,8 @@ class Dataset:
         data = self._run_filesystem(output_dir)
 
         #  Cleanup: Remove downloaded files after parsing it
-        shutil.rmtree(output_dir, ignore_errors=True)
+        if remove_after_download:
+            shutil.rmtree(output_dir, ignore_errors=True)
 
         return data
 
@@ -218,9 +220,6 @@ class Dataset:
             new_lengths[cat] = len(self.Data.get(cat))
 
         print('Before: {} \n After: {}'.format(lengths, new_lengths))
-
-
-
 
     def relative_to_absolute(self, path):
         """
