@@ -2,7 +2,7 @@
 School assignment - Creating a simple neural network with tensorflow
 
 ## Dependencies
-``pip3 install tensorflow google_images_download``
+``pip3 install tensorflow google_images_download opencv-python``
 
 ## Installation
 - Pull the project

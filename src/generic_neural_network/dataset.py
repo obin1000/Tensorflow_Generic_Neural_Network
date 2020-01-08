@@ -1,6 +1,7 @@
 import os
 import cv2
 import random
+import datetime
 import numpy as np
 from google_images_download import google_images_download
 
@@ -15,12 +16,18 @@ class Dataset:
     It will use the topics to collect data from google images. You'll need to provide multiple topics, since the library
     is only able to collect 100 images per topic at max.
     """
-    IMAGE_SIZE = 100
+    IMAGE_DIMENSIONS = 100
+    # Max difference in size of the dataset
     MAX_DATA_BALANCE_DIFFERENCE = 5
-    DEFAULT_DATA_DIRECTORY = 'dataset/download/'
+    DEFAULT_DATA_DIRECTORY = '../../dataset/download/'
     MAX_GOOGLE_IMAGES_PER_SEARCH = 100
-
-    fileCounter = 0
+    IMAGES_EXTENSION = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+    # 'past-year', 'past-month', 'past-7-days', 'past-24-hours'
+    GOOGLE_FILTERS_TIME = ['past-year', 'past-month', 'past-7-days', 'past-24-hours']
+    # Possibilities are: , 'clip-art', 'face', 'line-drawing', 'animated'
+    GOOGLE_FILTERS_TYPE = ['photo']
+    # 'square', 'tall', 'wide', 'panoramic'
+    GOOGLE_FILTERS_ASPECT_RATIO = ['square', 'tall', 'wide', 'panoramic']
 
     def __init__(self):
         """
@@ -35,37 +42,116 @@ class Dataset:
              ...
             }
         """
-        self.Categories = []
+        self.categories = []
         self.Data = {}
 
     def add_category(self, cat):
         """
         Add a category to the dataset
-        :param cat: The category to add, should look like: ['Name', 'Source1', 'Source2'...]
+        :param cat: The category to add, should look like: ['Name',size ,'Source1', 'Source2'...]
         :return: None
         """
-        self.Categories.append(cat)
+        # Add the category to the dictionary with an empty list to store the data
+        self.Data[cat[0]] = []
+        self.categories.append(cat)
 
-    def run(self):
+    def get_categories(self):
+        """
+        Get the current categories
+        :return: The categories
+        """
+        return self.categories
+
+    def run(self, balance=True):
         # Grab each category and parse the data from given sources
-        for category in self.Categories:
-
+        for category in self.categories:
+            # Sources meant for google search
+            google_sources = []
+            # Name of the category
             name = category[0]
-            # Add the category to the dictionary with an empty list to store the data
-            self.Data[name] = []
+            size = category[1]
 
             # Parse the data sources, skip the first item since that is the name of the category
-            for source in category[1:]:
+            for source in category[2:]:
                 if ('/' in source) or ('\\' in source):
-                    self._run_filesystem(source, name)
-                elif not ('www' in source):
-                    print('Generating dataset of {}: {}'.format(category, source))
-                    self._run_google_images(source, name)
+                    self.Data[name] += self._run_filesystem(source)
+
+                elif not ('www.' in source):
+                    google_sources.append(source)
+
                 else:
                     print('Could not understand source: {}'.format(source))
 
-                if len(self.Data):
-                    print('Parsed {} items for category {} from {}'.format(len(self.Data[name]), name, source))
+            if len(google_sources):
+                # Google cannot handle individual sources, but needs them as list.
+                print('Generating dataset from Google of {}: {}'.format(category, google_sources))
+                self.Data[name] += self._run_google_images(google_sources, name, size)
+
+        if balance:
+            self.balance_data()
+
+    def _run_filesystem(self, dir):
+        """
+        Recursive scans given directory for images for given category with default parsing parameters.
+        :param dir: Directory with data.
+        :return: A list with all images parsed for given directory
+        """
+        gathered_data = []
+        for file in os.listdir(dir):
+            full_path = os.path.join(dir, file)
+            filename, file_extension = os.path.splitext(file)
+            if os.path.isdir(full_path):
+                gathered_data += self._run_filesystem(full_path)
+            elif file_extension.lower() in self.IMAGES_EXTENSION:
+                gathered_data.append(self.read_image(full_path))
+            else:
+                print('Unknown file type found: {}'.format(file_extension))
+        return gathered_data
+
+    def _run_google_images(self, topics, category, num_of_images):
+
+        # Set the number of images limit per search
+        num_img_per_search = self.MAX_GOOGLE_IMAGES_PER_SEARCH
+        if self.MAX_GOOGLE_IMAGES_PER_SEARCH > num_of_images:
+            num_img_per_search = num_of_images
+
+        # class instantiation
+        response = google_images_download.googleimagesdownload()
+
+        # Group images by category to prevent double images in the dataset
+        output_dir = self.relative_to_absolute(os.path.join(self.DEFAULT_DATA_DIRECTORY, str(category)))
+
+
+        # Fill the output directory with images of given topics.
+        for topic in topics:
+            for filter_type in self.GOOGLE_FILTERS_TYPE:
+                for aspect_ratio in self.GOOGLE_FILTERS_ASPECT_RATIO:
+                    for time in self.GOOGLE_FILTERS_TIME:
+                        # Decided not to use a prefix in the file name. This way images that appear at multiple searching will
+                        # not be used multiple times in the dataset, but will just overwrite itself.
+                        # Creating list of arguments for a Google search
+                        arguments = {'keywords': topic, 'limit': num_img_per_search, 'no_directory': True,
+                                     'output_directory': output_dir, 'type': filter_type,
+                                     'time': time, 'aspect_ratio': aspect_ratio}
+
+                        # Start the download
+                        paths = response.download(arguments)
+
+                        # check is enough data is gathered
+                        if len(os.listdir(output_dir)) > num_of_images:
+                            break
+                    # check is enough data is gathered
+                    if len(os.listdir(output_dir)) > num_of_images:
+                        break
+                # This is just bullshit
+                if len(os.listdir(output_dir)) > num_of_images:
+                    break
+            # check is enough data is gathered
+            if len(os.listdir(output_dir)) > num_of_images:
+                break
+
+        # Use filesystem to parse and add the images to the dataset
+        return self._run_filesystem(output_dir)
 
     def normalize_data(self, data, max_value=255):
         """
@@ -82,42 +168,27 @@ class Dataset:
         If there is an imbalance, data will be removed from the biggest set until the balance is within margins.
         :return: None
         """
-        pass
+        lengths = {}
 
     def relative_to_absolute(self, url):
         current_dir = os.path.dirname(__file__)
         return os.path.join(current_dir, url)
 
-    def _run_filesystem(self, dir, category, normalize=True):
-        category_data = []
+    def read_image(self, path, color=cv2.IMREAD_GRAYSCALE, normalize=True, resize=True):
+        img_values = []
+        try:
+            # Use opencv to read the image
+            img_values = cv2.imread(path, color)
+            # Normalize shape of image to given dimensions and values of grayscale to values between 0 and 1.
+            if resize:
+                img_values = cv2.resize(img_values, (self.IMAGE_DIMENSIONS, self.IMAGE_DIMENSIONS))
+            if normalize:
+                img_values = self.normalize_data(img_values)
+        except Exception as e:
+            # Skip all broken images
+            print('Something went wrong with image {}: {}'.format(path, e))
 
-        for image in os.listdir(dir):
-            try:
-                # Use opencv to read the image. In grayscale for less memory usage and easier parsing
-                img_values = cv2.imread(os.path.join(dir, image), cv2.IMREAD_GRAYSCALE)
-                # Normalize shape of image to given dimensions and values of grayscale to values between 0 and 1.
-                if normalize:
-                    img_values = cv2.resize(img_values, (self.IMAGE_SIZE, self.IMAGE_SIZE))
-                    img_values = self.normalize_data(img_values)
-                category_data.append(img_values)
-            except Exception as e:
-                # Skip all broken images
-                print('Something went wrong with image {}: {}'.format(image, e))
-        self.Data[category] += category_data
-
-    def _run_google_images(self, topic, category, num_of_images=20):
-        if num_of_images > self.MAX_GOOGLE_IMAGES_PER_SEARCH:
-            num_of_images = self.MAX_GOOGLE_IMAGES_PER_SEARCH
-
-        response = google_images_download.googleimagesdownload()  # class instantiation
-
-        # Decided not to use a prefix in the file name. This way images which appear at multiple searching will
-        # not be used multiple times in the dataset, but will just be overwritten
-        # Creating list of arguments
-        arguments = {'keywords': topic, 'limit': num_of_images, 'no_directory': True,
-                     'output_directory': self.DEFAULT_DATA_DIRECTORY}
-        paths = response.download(arguments)  # passing the arguments to the function
-        self._run_filesystem(self.DEFAULT_DATA_DIRECTORY, category)
+        return img_values
 
     def get_label_data_separated(self):
         """
@@ -171,9 +242,6 @@ class Dataset:
         random.shuffle(random_data)
         return random_data
 
-    def labels_to_numbers(self, labels):
-        pass
-
     def export_bin(self, path):
         """
         Export the data to a csv file
@@ -181,8 +249,7 @@ class Dataset:
         :return: None
         """
         print('exporting dataset to {}'.format(path))
-        np.save('{}data{}.npy'.format(path, Dataset.fileCounter), self.Data)
-        Dataset.fileCounter += 1
+        np.save('{}{}.npy'.format(path, self.get_filename()), self.Data)
 
     def export_compressed(self, path):
         """
@@ -191,8 +258,7 @@ class Dataset:
         :return: None
         """
         print('exporting dataset to {}'.format(path))
-        np.savez_compressed('{}data{}.npz'.format(path, Dataset.fileCounter), self.Data)
-        Dataset.fileCounter += 1
+        np.savez_compressed('{}{}.npz'.format(path, self.get_filename()), self.Data)
 
     def import_bin(self, path):
         """
@@ -202,11 +268,18 @@ class Dataset:
         """
         # Allow pickle to be able to import an array
         self.Data = np.load(path, allow_pickle=True).item()
-        self.Categories = self.Data.keys()
+        self.categories = self.Data.keys()
 
     def import_compressed(self, path, array_num='arr_0'):
         self.Data = np.load(path, allow_pickle=True)[array_num].item()
-        self.Categories = self.Data.keys()
+        self.categories = self.Data.keys()
+
+    def get_filename(self):
+        """
+        Get a unique filename
+        :return: A unique filename
+        """
+        return str(datetime.datetime.now().date()) + '_' + str(datetime.datetime.now().time()).replace(':', '.')
 
     def __str__(self):
         cats = ''
@@ -215,4 +288,4 @@ class Dataset:
             num = len(self.Data[cat])
             cats += '{}: {}\n'.format(cat, num)
             total += num
-        return 'Categories: {} \n Total data: {} \n {}'.format(self.Categories, total, cats)
+        return 'Categories: {} \n Total data: {} \n {}'.format(self.categories, total, cats)
