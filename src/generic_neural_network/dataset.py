@@ -1,5 +1,6 @@
 import os
 import cv2
+import shutil
 import random
 import datetime
 import numpy as np
@@ -17,11 +18,11 @@ class Dataset:
     is only able to collect 100 images per topic at max.
     """
     IMAGE_DIMENSIONS = 100
-    # Max difference in size of the dataset
-    MAX_DATA_BALANCE_DIFFERENCE = 5
+    # Max difference in size of the dataset in percent (scale 0 to 1)
+    MAX_DATA_BALANCE_DIFFERENCE = 0.10
     DEFAULT_DATA_DIRECTORY = '../../dataset/download/'
     MAX_GOOGLE_IMAGES_PER_SEARCH = 100
-    IMAGES_EXTENSION = ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+    IMAGES_EXTENSION = ['.png', '.jpg', '.jpeg', '.webp']
     # 'past-year', 'past-month', 'past-7-days', 'past-24-hours'
     GOOGLE_FILTERS_TIME = ['past-year', 'past-month', 'past-7-days', 'past-24-hours']
     # Possibilities are: , 'clip-art', 'face', 'line-drawing', 'animated'
@@ -63,6 +64,11 @@ class Dataset:
         return self.categories
 
     def run(self, balance=True):
+        """
+        Parse given categories to a dataset.
+        :param balance: Balance the dataset after parsing?
+        :return: None
+        """
         # Grab each category and parse the data from given sources
         for category in self.categories:
             # Sources meant for google search
@@ -85,7 +91,7 @@ class Dataset:
             if len(google_sources):
                 # Google cannot handle individual sources, but needs them as list.
                 print('Generating dataset from Google of {}: {}'.format(category, google_sources))
-                self.Data[name] += self._run_google_images(google_sources, name, size)
+                self.Data[name] += self._run_google_images(google_sources, size)
 
         if balance:
             self.balance_data()
@@ -108,27 +114,33 @@ class Dataset:
                 print('Unknown file type found: {}'.format(file_extension))
         return gathered_data
 
-    def _run_google_images(self, topics, category, num_of_images):
-
-        # Set the number of images limit per search
-        num_img_per_search = self.MAX_GOOGLE_IMAGES_PER_SEARCH
-        if self.MAX_GOOGLE_IMAGES_PER_SEARCH > num_of_images:
-            num_img_per_search = num_of_images
+    def _run_google_images(self, topics, num_of_images, remove_after_downlaod=True):
+        """
+        Creates a dataset from Google images.
+        :param topics: A list of topics to search  the web with
+        :param num_of_images: Number of images wanted in the dataset
+        :return: A list with images parsed for given topics
+        """
 
         # class instantiation
         response = google_images_download.googleimagesdownload()
 
         # Group images by category to prevent double images in the dataset
-        output_dir = self.relative_to_absolute(os.path.join(self.DEFAULT_DATA_DIRECTORY, str(category)))
-
+        output_dir = self.relative_to_absolute(os.path.join(self.DEFAULT_DATA_DIRECTORY, self.get_filename()))
 
         # Fill the output directory with images of given topics.
         for topic in topics:
             for filter_type in self.GOOGLE_FILTERS_TYPE:
                 for aspect_ratio in self.GOOGLE_FILTERS_ASPECT_RATIO:
                     for time in self.GOOGLE_FILTERS_TIME:
-                        # Decided not to use a prefix in the file name. This way images that appear at multiple searching will
-                        # not be used multiple times in the dataset, but will just overwrite itself.
+                        # Set the number of images limit per search
+                        num_img_per_search = self.MAX_GOOGLE_IMAGES_PER_SEARCH
+                        if num_of_images < self.MAX_GOOGLE_IMAGES_PER_SEARCH:
+                            num_img_per_search = num_of_images
+
+                        # Decided not to use a prefix in the file name. This way images that appear at
+                        # multiple searching will not be used multiple times in the dataset,
+                        # but will just overwrite itself.
                         # Creating list of arguments for a Google search
                         arguments = {'keywords': topic, 'limit': num_img_per_search, 'no_directory': True,
                                      'output_directory': output_dir, 'type': filter_type,
@@ -138,7 +150,8 @@ class Dataset:
                         paths = response.download(arguments)
 
                         # check is enough data is gathered
-                        if len(os.listdir(output_dir)) > num_of_images:
+                        current_images = len(os.listdir(output_dir))
+                        if current_images > num_of_images:
                             break
                     # check is enough data is gathered
                     if len(os.listdir(output_dir)) > num_of_images:
@@ -151,9 +164,14 @@ class Dataset:
                 break
 
         # Use filesystem to parse and add the images to the dataset
-        return self._run_filesystem(output_dir)
+        data = self._run_filesystem(output_dir)
 
-    def normalize_data(self, data, max_value=255):
+        #  Cleanup: Remove downloaded files after parsing it
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+        return data
+
+    def normalize_image(self, data, max_value=255):
         """
         Normalize some data by changing its values to values between 0 and 1
         :param data: Data to be normalized (img)
@@ -168,13 +186,60 @@ class Dataset:
         If there is an imbalance, data will be removed from the biggest set until the balance is within margins.
         :return: None
         """
+        print('Starting balancing data')
         lengths = {}
+        smallest_length = 9999999999999999.9
+        for cat in self.Data:
+            # Grab the length of each category
+            lengths[cat] = len(self.Data.get(cat))
 
-    def relative_to_absolute(self, url):
+        for cat in lengths:
+            # Get the smallest length
+            length = lengths.get(cat)
+            if length < smallest_length:
+                smallest_length = length
+
+        print('Smallest set is {}'.format(smallest_length))
+
+        for cat in lengths:
+            # Calculate the percent difference of each category with the smallest category
+            length = lengths.get(cat)
+            difference = (1.0 - (smallest_length / length))
+            if difference > self.MAX_DATA_BALANCE_DIFFERENCE:
+                print('Unacceptable difference in set {}'.format(cat))
+                if remove:
+                    # Trim the category to the size of the smallest category
+                    trim_length = smallest_length + (smallest_length * self.MAX_DATA_BALANCE_DIFFERENCE)
+                    del self.Data.get(cat)[trim_length:]
+
+        new_lengths = {}
+        for cat in self.Data:
+            # Grab the length of each category
+            new_lengths[cat] = len(self.Data.get(cat))
+
+        print('Before: {} \n After: {}'.format(lengths, new_lengths))
+
+
+
+
+    def relative_to_absolute(self, path):
+        """
+        Convert a path relative to this file to an absolute path.
+        :param path: Path relative to this file.
+        :return: Absolute path
+        """
         current_dir = os.path.dirname(__file__)
-        return os.path.join(current_dir, url)
+        return os.path.join(current_dir, path)
 
     def read_image(self, path, color=cv2.IMREAD_GRAYSCALE, normalize=True, resize=True):
+        """
+        Use opencv to read an image from the file system and parse it.
+        :param path: Path to the image.
+        :param color: Color to convert the image to.
+        :param normalize: Normalize the data? (scale values to values between 0 and 1)
+        :param resize: Resize images to the default dimensions?
+        :return: A nested list with pixel values of the image
+        """
         img_values = []
         try:
             # Use opencv to read the image
@@ -183,7 +248,7 @@ class Dataset:
             if resize:
                 img_values = cv2.resize(img_values, (self.IMAGE_DIMENSIONS, self.IMAGE_DIMENSIONS))
             if normalize:
-                img_values = self.normalize_data(img_values)
+                img_values = self.normalize_image(img_values)
         except Exception as e:
             # Skip all broken images
             print('Something went wrong with image {}: {}'.format(path, e))
@@ -263,7 +328,7 @@ class Dataset:
     def import_bin(self, path):
         """
         Will override current data
-        :param path: Path to the csv file
+        :param path: Path to the file
         :return: None
         """
         # Allow pickle to be able to import an array
@@ -271,6 +336,12 @@ class Dataset:
         self.categories = self.Data.keys()
 
     def import_compressed(self, path, array_num='arr_0'):
+        """
+        Read a numpy compressed file
+        :param path: Path to the file
+        :param array_num: Num ber of the array to grab from the compressed file
+        :return: None
+        """
         self.Data = np.load(path, allow_pickle=True)[array_num].item()
         self.categories = self.Data.keys()
 
