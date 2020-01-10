@@ -20,9 +20,10 @@ class Learner:
         self.model = Sequential()
         self.predictions = []
         self.labels = labels
+        print(len(dataset))
         self.dataset = dataset
         self.num_of_categories = num_of_categories
-        print('2datashape: {}'.format(self.dataset.shape))
+
         # Binary data is broken atm, so always use multi
         if num_of_categories <= -2:
             print('Using binary model')
@@ -40,7 +41,8 @@ class Learner:
             print('Using multi compiler')
             self.model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
         print('dataset shape: {}'.format(self.dataset.shape))
-
+        print(len(self.dataset))
+        print(len(self.labels))
         self.model.fit(self.dataset, self.labels, epochs=self.EPOCHS)
 
     def get_binary_model(self):

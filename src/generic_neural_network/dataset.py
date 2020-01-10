@@ -17,7 +17,6 @@ class Dataset:
     It will use the topics to collect data from google images. You'll need to provide multiple topics, since the library
     is only able to collect 100 images per topic at max.
     """
-    IMAGE_DIMENSIONS = 100
     # Max difference in size of the dataset in percent (scale 0 to 1)
     MAX_DATA_BALANCE_DIFFERENCE = 0.10
     DEFAULT_DATA_DIRECTORY = '../../dataset/download/'
@@ -45,6 +44,10 @@ class Dataset:
         """
         self.categories = []
         self.Data = {}
+        self.image_dimensions = 100
+
+    def set_image_dimension(self, dimensions):
+        self.image_dimensions = dimensions
 
     def add_category(self, cat):
         """
@@ -245,7 +248,7 @@ class Dataset:
             img_values = cv2.imread(path, color)
             # Normalize shape of image to given dimensions and values of grayscale to values between 0 and 1.
             if resize:
-                img_values = cv2.resize(img_values, (self.IMAGE_DIMENSIONS, self.IMAGE_DIMENSIONS))
+                img_values = cv2.resize(img_values, (self.image_dimensions, self.image_dimensions))
             if normalize:
                 img_values = self.normalize_image(img_values)
         except Exception as e:
@@ -293,9 +296,9 @@ class Dataset:
         for data in random_data:
             labels.append(data[0])
             datas.append(data[1])
-        datas = np.array(datas).reshape((-1, self.IMAGE_DIMENSIONS, self.IMAGE_DIMENSIONS, 1))
+        print('datas {}'.format(len(datas)))
+        datas = np.array(datas).reshape(-1, self.image_dimensions, self.image_dimensions, 1)
         labels = np.array(labels)
-        print('aaaaaa {}'.format(datas.shape))
         return labels, datas
 
     def get_shuffled_data(self):
