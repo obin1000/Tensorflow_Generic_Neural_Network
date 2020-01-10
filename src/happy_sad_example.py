@@ -12,7 +12,7 @@ train_set.IMAGE_DIMENSIONS = IMAGE_DIMENSIONS
 train_set.run()
 train_set.export_compressed(train_set.relative_to_absolute('../../dataset/'))
 train_labels, train_data = train_set.get_shuffled_label_data_separated()
-
+print('type ' + type(train_data))
 # ====== Create Test Set =======
 test_set = Dataset()
 # 0 is cat, 1 is dog
@@ -23,7 +23,7 @@ test_set.run()
 test_labels, test_data = test_set.get_shuffled_label_data_separated()
 
 # ======= Train a network ======
-genie = Learner(np.asarray(train_labels), np.asarray(train_data), len(train_set.get_categories()))
+genie = Learner(train_labels, train_data, len(train_set.get_categories()))
 genie.EPOCHS = 20
 genie.train()
 

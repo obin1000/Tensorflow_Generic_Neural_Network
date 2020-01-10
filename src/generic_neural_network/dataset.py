@@ -284,7 +284,7 @@ class Dataset:
     def get_shuffled_label_data_separated(self):
         """
         First shuffles data, then separates the labels from the data. ['Cat','Dog','Cat'], [data, data, data...]
-        :return: The labels and data
+        :return: The labels and data [[  [[0.1], [0.2]],[[0.2],[0.1]]  ], [ [[0.1], [0.2]], [[0.2],[0.1]]  ]]
         """
         random_data = self.get_shuffled_data()
         labels = []
@@ -293,6 +293,9 @@ class Dataset:
         for data in random_data:
             labels.append(data[0])
             datas.append(data[1])
+        datas = np.array(datas).reshape((-1, self.IMAGE_DIMENSIONS, self.IMAGE_DIMENSIONS, 1))
+        labels = np.array(labels)
+        print('aaaaaa {}'.format(datas.shape))
         return labels, datas
 
     def get_shuffled_data(self):

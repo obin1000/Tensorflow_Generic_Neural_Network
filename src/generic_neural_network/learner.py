@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, Activation, MaxPooling2D, Flatten, Dense
-import matplotlib.pyplot as plt
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 import numpy as np
 
 
@@ -19,11 +18,11 @@ class Learner:
         """
 
         self.model = Sequential()
-        print('datashape: {}'.format(dataset.shape))
         self.predictions = []
         self.labels = labels
         self.dataset = dataset
         self.num_of_categories = num_of_categories
+        print('2datashape: {}'.format(self.dataset.shape))
         # Binary data is broken atm, so always use multi
         if num_of_categories <= -2:
             print('Using binary model')
@@ -40,11 +39,12 @@ class Learner:
         else:
             print('Using multi compiler')
             self.model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-        print('dataset shape: {} labels shape: {}'.format(self.dataset.shape, self.labels.shape))
+        print('dataset shape: {}'.format(self.dataset.shape))
+
         self.model.fit(self.dataset, self.labels, epochs=self.EPOCHS)
 
     def get_binary_model(self):
-        self.model.add(Conv2D(16, kernel_size=2, activation='relu', input_shape=(28, 28, 1)))
+        self.model.add(Conv2D(16, kernel_size=2, activation='relu', input_shape=self.dataset[0].shape))
         self.model.add(MaxPooling2D((2, 2)))
         self.model.add(Flatten())
         self.model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
